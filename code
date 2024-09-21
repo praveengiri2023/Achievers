@@ -1,0 +1,82 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
+
+# For visualization
+import seaborn as sns
+import matplotlib.pyplot as plt
+# Load the dataset
+df = pd.read_csv('C:/Users/Dell/Downloads/DailyDelhiClimateTest.csv')
+
+# Check for missing values and basic statistics
+print(df.info())
+print(df.describe())
+
+# Let's assume 'temperature', 'humidity', and 'wind speed' are columns available
+features = df[['meantemp', 'humidity', 'wind_speed']]
+# Check for missing values and handle them
+features = features.ffill() 
+
+# Create weather labels based on basic thresholds (for demo purposes)
+def weather_condition(row):
+     if 'humidity' in row and 'min_temp' in row:
+        if row['humidity'] > 80:
+           return 'Rainy'
+        elif row['mintemp'] > 25:
+           return 'Sunny'
+        else:
+           return 'Cloudy'
+  
+df['weather'] = df.apply(weather_condition, axis=1)
+
+# Encode the labels (Sunny: 0, Rainy: 1, Cloudy: 2)
+df['weather_label'] = df['weather'].map({'Sunny': 0, 'Rainy': 1, 'Cloudy': 2})
+# Define features and target variable
+X = features
+y = df['weather_label']
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Standardize the features
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+# Train a Random Forest model
+# Assuming y_train is a pandas Series
+print(y_train.isnull().sum())  # Check for NaNs
+
+# Remove NaNs
+valid_indices = y_train.notna()
+X_train = X_train[valid_indices]
+y_train = y_train[valid_indices]
+
+# Check again for NaNs
+print(y_train.isnull().sum())  # Should be zero now
+if y_train.shape[0] > 0 and X_train.shape[0] > 0:
+    model = RandomForestClassifier(random_state=42)
+    model.fit(X_train, y_train)
+    if hasattr(model, "estimators_"):
+        y_pred = model.predict(X_test)
+    else:
+        print("Model is not fitted yet.")
+else:
+    print("Not enough samples to train the model.")
+
+# Predictions
+y_pred = model.predict(X_test)
+
+# Evaluate
+print(y_train.isnull().sum())
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+print("Classification Report:\n", classification_report(y_test, y_pred))
+# Visualize confusion matrix
+conf_matrix = confusion_matrix(y_test, y_pred)
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues')
+plt.ylabel('True Label')
+plt.xlabel('Predicted Label')
+plt.title('Confusion Matrix for Weather Classification')
+plt.show()
